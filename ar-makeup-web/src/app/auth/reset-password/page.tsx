@@ -21,29 +21,40 @@ function ResetPasswordContent() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const verifySession = async () => {
-      // Supabase automatically URL ke token/code ko exchange karke temporary recovery session bana deta hai
-      const { data } = await supabase.auth.getSession();
-      
-      if (code || data.session) {
+  const verifyAndExchangeCode = async () => {
+    try {
+      if (code) {
+        // 1. PKCE Flow: URL ke 'code' ko Supabase session se exchange karo
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        
+        if (error) {
+          console.error("Exchange error:", error.message);
+          setMsg("Link expire ho chuka hai ya invalid hai. Naya link mangwayein.");
+          setChecking(false);
+          return;
+        }
+        
+        // Agar exchange successful raha, toh session ban gaya!
         setChecking(false);
       } else {
-        // Kuch milliseconds ka delay dete hain taaki hash URL fragment catch ho sake
-        setTimeout(async () => {
-          const { data: retryData } = await supabase.auth.getSession();
-          if (retryData.session) {
-            setChecking(false);
-          } else {
-            setMsg("Invalid or missing reset link. Please request a new password reset.");
-            setChecking(false);
-          }
-        }, 1000);
+        // 2. Fallback: Agar pehle se session maujood hai
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          setChecking(false);
+        } else {
+          setMsg("Auth session missing! Please request a new password reset.");
+          setChecking(false);
+        }
       }
-    };
+    } catch (err) {
+      console.error("Error in session verification:", err);
+      setMsg("Something went wrong. Please try again.");
+      setChecking(false);
+    }
+  };
 
-    verifySession();
-  }, [code]);
-
+  verifyAndExchangeCode();
+}, [code]);
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
