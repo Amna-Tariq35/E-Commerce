@@ -4,40 +4,49 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import AuthShell from "@/src/components/layout/AuthShell";
+import { supabase } from "@/src/lib/supabase/client";
 
-// 1. Saara state logic aur UI ab is main content component ke andar hai
 function ResetPasswordContent() {
   const router = useRouter();
   const sp = useSearchParams();
-  const token = sp.get("token");
+  
+  // Supabase native flow me 'code' parameter bhejta hai (PKCE)
+  const code = sp.get("code");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [validToken, setValidToken] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Check if we have a valid reset token
-    if (token) {
-      setValidToken(true);
-      setChecking(false);
-    } else {
-      setMsg("Invalid or missing reset link. Please request a new password reset.");
-      setChecking(false);
-    }
-  }, [token]);
+    const verifySession = async () => {
+      // Supabase automatically URL ke token/code ko exchange karke temporary recovery session bana deta hai
+      const { data } = await supabase.auth.getSession();
+      
+      if (code || data.session) {
+        setChecking(false);
+      } else {
+        // Kuch milliseconds ka delay dete hain taaki hash URL fragment catch ho sake
+        setTimeout(async () => {
+          const { data: retryData } = await supabase.auth.getSession();
+          if (retryData.session) {
+            setChecking(false);
+          } else {
+            setMsg("Invalid or missing reset link. Please request a new password reset.");
+            setChecking(false);
+          }
+        }, 1000);
+      }
+    };
+
+    verifySession();
+  }, [code]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
-
-    if (!token) {
-      setMsg("Reset link is missing. Please request a new one.");
-      return;
-    }
 
     if (password !== confirmPassword) {
       setMsg("Passwords do not match");
@@ -49,33 +58,25 @@ function ResetPasswordContent() {
       return;
     }
 
-    loading && setLoading(true);
+    setLoading(true);
 
     try {
-      // Call API to reset password with token validation
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          password,
-        }),
+      // ✅ Kisi API Route ki zaroorat nahi, Supabase Client seedha login user ka password update kar dega
+      const { error } = await supabase.auth.updateUser({
+        password: password,
       });
-
-      const data = await response.json();
 
       setLoading(false);
 
-      if (!response.ok) {
-        setMsg(data.error || "Failed to reset password");
+      if (error) {
+        setMsg(error.message || "Failed to reset password");
         return;
       }
 
       setSuccess(true);
-      // Redirect to sign in after 2 seconds
       setTimeout(() => {
         router.push("/auth/sign-in?resetSuccess=true");
-      }, 2000);
+      }, 2500);
     } catch (err) {
       setLoading(false);
       setMsg("An error occurred. Please try again.");
@@ -85,10 +86,7 @@ function ResetPasswordContent() {
 
   if (checking) {
     return (
-      <AuthShell
-        title="Reset password"
-        subtitle="Verifying your reset link..."
-      >
+      <AuthShell title="Reset password" subtitle="Verifying your reset link...">
         <div className="flex justify-center py-8">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-black/20 border-t-[#C06C84]" />
         </div>
@@ -96,12 +94,9 @@ function ResetPasswordContent() {
     );
   }
 
-  if (!validToken) {
+  if (msg && !success && password === "") {
     return (
-      <AuthShell
-        title="Reset password"
-        subtitle="There's an issue with your reset link."
-      >
+      <AuthShell title="Reset password" subtitle="There's an issue with your reset link.">
         <div className="space-y-4">
           <div className="rounded-2xl border border-[#C06C84]/25 bg-[#F4C2C2]/25 px-4 py-3 text-sm text-[#2A2A2A]">
             {msg}
@@ -115,10 +110,7 @@ function ResetPasswordContent() {
           </Link>
 
           <div className="flex items-center justify-between text-sm">
-            <Link
-              href="/auth/sign-in"
-              className="text-black/60 hover:text-[#C06C84] hover:underline transition-colors"
-            >
+            <Link href="/auth/sign-in" className="text-black/60 hover:text-[#C06C84] hover:underline transition-colors">
               Back to sign in
             </Link>
           </div>
@@ -128,17 +120,11 @@ function ResetPasswordContent() {
   }
 
   return (
-    <AuthShell
-      title="Create new password"
-      subtitle="Enter a strong password to secure your account."
-    >
+    <AuthShell title="Create new password" subtitle="Enter a strong password to secure your account.">
       {!success ? (
         <form onSubmit={onSubmit} className="space-y-4">
-          {/* Password */}
           <div>
-            <label className="block text-xs font-medium text-black/70 mb-1">
-              New password
-            </label>
+            <label className="block text-xs font-medium text-black/70 mb-1">New password</label>
             <input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -149,16 +135,11 @@ function ResetPasswordContent() {
               style={{ WebkitTextFillColor: "#000", WebkitBoxShadow: "0 0 0 1000px #fff inset" }}
               required
             />
-            <p className="mt-1.5 text-xs text-black/50">
-              Use at least 8 characters.
-            </p>
+            <p className="mt-1.5 text-xs text-black/50">Use at least 8 characters.</p>
           </div>
 
-          {/* Confirm Password */}
           <div>
-            <label className="block text-xs font-medium text-black/70 mb-1">
-              Confirm password
-            </label>
+            <label className="block text-xs font-medium text-black/70 mb-1">Confirm password</label>
             <input
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -184,15 +165,6 @@ function ResetPasswordContent() {
           >
             {loading ? "Resetting…" : "Reset password"}
           </button>
-
-          <div className="flex items-center justify-between text-sm">
-            <Link
-              href="/auth/sign-in"
-              className="text-black/60 hover:text-[#C06C84] hover:underline transition-colors"
-            >
-              Back to sign in
-            </Link>
-          </div>
         </form>
       ) : (
         <div className="space-y-4">
@@ -207,17 +179,12 @@ function ResetPasswordContent() {
           >
             Go to sign in
           </button>
-
-          <p className="text-xs text-black/50 text-center">
-            Your password has been securely updated.
-          </p>
         </div>
       )}
     </AuthShell>
   );
 }
 
-// 2. Main Page component jo build ke time client-side hooks ko safely handle karega
 export default function ResetPasswordPage() {
   return (
     <Suspense
