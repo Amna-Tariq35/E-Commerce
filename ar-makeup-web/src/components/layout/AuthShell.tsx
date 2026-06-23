@@ -26,7 +26,7 @@ export default function AuthShell({
             {/* Brand pill */}
             <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-[#C06C84]/20 bg-white/70 px-3.5 py-1.5 text-xs text-[#C06C84]/80 backdrop-blur shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-[#C06C84]" />
-              AR Makeup
+              Lumiere Makeup
             </div>
 
             <h1 className="mt-4 text-[2rem] font-semibold tracking-tight text-[#1F1F1F] leading-tight">

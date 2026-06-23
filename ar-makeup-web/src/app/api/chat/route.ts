@@ -171,7 +171,7 @@ const recommendProducts = tool({
       let query = supabase
         .from("makeup_products")
         .select(
-          "id, name, brand, category, price, image_url, product_shades(id, shade_name, color_family, skin_tone, undertone, shade_hex)"
+          "id, product_key, name, brand, category, price, image_url, product_shades(id, shade_name, color_family, skin_tone, undertone, shade_hex)"
         )
         .limit(SUPABASE_RESULTS_LIMIT);
 

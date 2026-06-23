@@ -48,7 +48,7 @@ function SignInFormContent() {
   return (
     <AuthShell
       title="Sign in"
-      subtitle="Access your saved looks and manage your cart."
+    
     >
       <form onSubmit={onSubmit} className="space-y-4">
         {/* Email */}
