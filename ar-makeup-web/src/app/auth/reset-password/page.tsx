@@ -21,39 +21,59 @@ function ResetPasswordContent() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+  let isMounted = true;
+
   const verifyAndExchangeCode = async () => {
     try {
+      // 1. Pehle check karo ki kya Strict Mode ke pehle run se already session ban chuka hai?
+      const { data: initialCheck } = await supabase.auth.getSession();
+      if (initialCheck.session) {
+        if (isMounted) setChecking(false);
+        return; // Agar session hai, toh exchange chalane ki zaroorat hi nahi
+      }
+
       if (code) {
-        // 1. PKCE Flow: URL ke 'code' ko Supabase session se exchange karo
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        // 2. PKCE Flow: URL ke single-use 'code' ko exchange karo
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
         
         if (error) {
+          // Double check: Kahin ye strict mode ke double-run ki wajah se toh fail nahi hua?
+          const { data: retryCheck } = await supabase.auth.getSession();
+          if (retryCheck.session) {
+            if (isMounted) setChecking(false);
+            return; // Agar session back-end par ban gaya tha, toh error ignore karo
+          }
+
           console.error("Exchange error:", error.message);
-          setMsg("Link expire ho chuka hai ya invalid hai. Naya link mangwayein.");
-          setChecking(false);
+          if (isMounted) {
+            setMsg("Link expire ho chuka hai ya invalid hai. Naya link mangwayein.");
+            setChecking(false);
+          }
           return;
         }
         
-        // Agar exchange successful raha, toh session ban gaya!
-        setChecking(false);
+        if (isMounted) setChecking(false);
       } else {
-        // 2. Fallback: Agar pehle se session maujood hai
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          setChecking(false);
-        } else {
+        if (isMounted) {
           setMsg("Auth session missing! Please request a new password reset.");
           setChecking(false);
         }
       }
     } catch (err) {
       console.error("Error in session verification:", err);
-      setMsg("Something went wrong. Please try again.");
-      setChecking(false);
+      if (isMounted) {
+        setMsg("Something went wrong. Please try again.");
+        setChecking(false);
+      }
     }
   };
 
   verifyAndExchangeCode();
+
+  // Cleanup function taake memory leaks ya double execution track ho sake
+  return () => {
+    isMounted = false;
+  };
 }, [code]);
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
