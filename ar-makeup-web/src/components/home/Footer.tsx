@@ -26,7 +26,7 @@ export default function Footer() {
                 { label: "All Products", href: "/products" },
                 { label: "New Arrivals", href: "/new-arrivals" },
                 { label: "Sale", href: "/sale" },
-                { label: "Gift Cards", href: "/gift-cards" },
+            
               ].map((x) => (
                 <Link key={x.label} href={x.href} className="text-xs font-light text-[#6a4a55] hover:text-[#B65C7A]">
                   {x.label}

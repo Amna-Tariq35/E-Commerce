@@ -261,7 +261,7 @@ export default function Chatbot() {
                   {[
                     '🌿 Oily skin, fair tone — suggest foundation',
                     '💋 Nude lipstick for warm undertone',
-                    '✨ Matte blush for dry skin',
+                  
                   ].map((suggestion) => (
                     <button
                       key={suggestion}
