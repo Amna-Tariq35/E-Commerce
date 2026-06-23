@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react"; // 💡 Suspense import kiya
 import { useRouter, useSearchParams } from "next/navigation";
 import { Copy, Check, Search, Package } from "lucide-react";
 import ReceiptSummary from "@/src/components/checkout/ReceiptSummary";
@@ -42,7 +42,8 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export default function TrackOrderPage() {
+// 1. Saara original component logic ab is internal Component me move ho gaya hai
+function TrackOrderContent() {
   const router = useRouter();
   const params = useSearchParams();
   const initialToken = params.get("guest_token") || "";
@@ -78,7 +79,7 @@ export default function TrackOrderPage() {
       return;
     }
 
-    setLoading(true);
+    loading || setLoading(true);
     try {
       const res = await fetch(`/api/orders/guest?guest_token=${encodeURIComponent(clean)}`);
       const data = await res.json().catch(() => ({}));
@@ -264,5 +265,23 @@ export default function TrackOrderPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 2. Main export jo Suspense Boundary provide karta hai taaki pre-rendering bypass ho sake.
+export default function TrackOrderPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+          <div className="text-center p-8 text-[var(--text-muted)]">
+            <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-black/10 border-t-[var(--rose-primary)] mr-2 align-middle" />
+            Loading order tracker...
+          </div>
+        </div>
+      }
+    >
+      <TrackOrderContent />
+    </Suspense>
   );
 }

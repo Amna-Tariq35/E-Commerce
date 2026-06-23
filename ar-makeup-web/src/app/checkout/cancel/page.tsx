@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function CheckoutCancelPage() {
+// 1. Saara original logic aur UI ab is component ke andar hai
+function CheckoutCancelContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const orderId = searchParams.get("order_id");
@@ -71,5 +72,22 @@ export default function CheckoutCancelPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 2. Main Page component jo build process ke waqt prerender error ko hone se rokega
+export default function CheckoutCancelPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base, #FAF7F5)" }}>
+          <div className="p-8 bg-white rounded-2xl shadow-sm text-center max-w-md w-full text-[var(--text-secondary, #8A8A8A)]">
+            Loading...
+          </div>
+        </div>
+      }
+    >
+      <CheckoutCancelContent />
+    </Suspense>
   );
 }

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import AuthShell from "@/src/components/layout/AuthShell";
 
-export default function ResetPasswordPage() {
+// 1. Saara state logic aur UI ab is main content component ke andar hai
+function ResetPasswordContent() {
   const router = useRouter();
   const sp = useSearchParams();
   const token = sp.get("token");
@@ -48,7 +49,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setLoading(true);
+    loading && setLoading(true);
 
     try {
       // Call API to reset password with token validation
@@ -213,5 +214,22 @@ export default function ResetPasswordPage() {
         </div>
       )}
     </AuthShell>
+  );
+}
+
+// 2. Main Page component jo build ke time client-side hooks ko safely handle karega
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell title="Reset password" subtitle="Verifying your reset link...">
+          <div className="flex justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-black/20 border-t-[#C06C84]" />
+          </div>
+        </AuthShell>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

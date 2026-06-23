@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import AuthShell from "@/src/components/layout/AuthShell";
 import { supabase } from "@/src/lib/supabase/client";
 
 // ─── Admin email (FYP: hardcoded for demo; replace with role-based check in production) ───
 const ADMIN_EMAIL = "admin@makeup.com";
 
-export default function SignInPage() {
+// 1. Saara logic aur UI ek naye component me daal diya
+function SignInFormContent() {
   const router = useRouter();
   const sp = useSearchParams();
   const next = sp.get("next") || "/";
@@ -125,5 +126,22 @@ export default function SignInPage() {
         </div>
       </form>
     </AuthShell>
+  );
+}
+
+// 2. Main Page component jisme Suspense boundary hai
+export default function SignInPage() {
+  return (
+    <Suspense 
+      fallback={
+        <AuthShell title="Sign in" subtitle="Loading...">
+          <div className="flex justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-black/20 border-t-[#C06C84]" />
+          </div>
+        </AuthShell>
+      }
+    >
+      <SignInFormContent />
+    </Suspense>
   );
 }

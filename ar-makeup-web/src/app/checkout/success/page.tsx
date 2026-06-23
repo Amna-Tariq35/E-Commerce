@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react"; // 💡 Suspense import kiya yahan
 import { useRouter, useSearchParams } from "next/navigation";
 import CheckoutShell from "@/src/components/checkout/CheckoutShell";
 import { clearCart } from "@/src/store/cart";
@@ -13,7 +13,8 @@ function shortRef(id?: string | null) {
   return id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id;
 }
 
-export default function CheckoutSuccessPage() {
+// 1. Saara original logic aur UI ab is content component ke andar move ho gaya hai
+function CheckoutSuccessContent() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -36,27 +37,23 @@ export default function CheckoutSuccessPage() {
   const emailSentRef = React.useRef(false);
 
   // userEmail state ko 3 values do: undefined (loading), null (not logged in), string (email)
-const [userEmail, setUserEmail] = useState<string | null | undefined>(undefined); // ← undefined = still loading
-useEffect(() => {
-  console.log("PAGE LOADED", { orderId, guestToken, sessionId });
-}, []);
-useEffect(() => {
-  supabase.auth.getUser().then(({ data }) => {
-    setUserEmail(data.user?.email ?? null); // null = confirmed no user
-  });
-}, []);
+  const [userEmail, setUserEmail] = useState<string | null | undefined>(undefined); // ← undefined = still loading
+  
+  useEffect(() => {
+    console.log("PAGE LOADED", { orderId, guestToken, sessionId });
+  }, [orderId, guestToken, sessionId]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null); // null = confirmed no user
+    });
+  }, []);
 
   const orderKey = `ar_makeup_checkout_success_cleaned_v1:${orderId || guestToken || "unknown"}`;
   const emailSentKey = `ar_makeup_checkout_success_email_sent_v1:${orderId || guestToken || "unknown"}`;
   const isStripeOrder = Boolean(sessionId);
   const paymentConfirmed = !isStripeOrder || paymentStatus === "paid";
   const hasReceipt = Boolean(receipt?.order);
-
-  // const refLabel = useMemo(() => {
-  //   if (orderId) return { label: "Order ID", value: orderId };
-  //   if (guestToken) return { label: "Guest Token", value: guestToken };
-  //   return { label: "Reference", value: "" };
-  // }, [orderId, guestToken]);
 
   // 1. Verify Stripe Payment (If session_id exists)
   useEffect(() => {
@@ -167,15 +164,6 @@ useEffect(() => {
       });
   }, [hasReceipt, paymentConfirmed, receipt, userEmail, orderId, guestToken, paymentStatus, sessionId, emailSentKey]);
 
-  // async function copyRef() {
-  //   if (!refLabel.value) return;
-  //   try {
-  //     await navigator.clipboard.writeText(refLabel.value);
-  //     setCopied(true);
-  //     setTimeout(() => setCopied(false), 1200);
-  //   } catch {}
-  // }
-
   return (
     <>
       <CheckoutShell
@@ -200,32 +188,6 @@ useEffect(() => {
                     ? "There was an issue verifying your payment. Your order is saved as 'Failed'."
                     : "We’ve saved your order. You can continue shopping anytime."}
               </p>
-
-              <div className="ui-divider" />
-
-              {/* <div className="space-y-2">
-                <div className="text-sm font-semibold text-[var(--text-main)]">
-                  {refLabel.label}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="ui-chip">{shortRef(refLabel.value)}</span>
-
-                  <button
-                    type="button"
-                    className="ui-btn-ghost"
-                    onClick={copyRef}
-                  >
-                    {copied ? "Copied ✅" : "Copy"}
-                  </button>
-                </div>
-
-                {guestToken ? (
-                  <p className="ui-helper mt-2">
-                    Save this token to track your guest order later.
-                  </p>
-                ) : null}
-              </div> */}
 
               <div className="ui-divider" />
 
@@ -283,7 +245,7 @@ useEffect(() => {
                   </li>
                 )}
                 <li>
-                 
+                  
                 </li>
               </ul>
             </div>
@@ -327,5 +289,22 @@ useEffect(() => {
         </div>
       )}
     </>
+  );
+}
+
+// 2. Main Page default export jo Next.js build ke static bailout error ko bypass karega
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-base,#FAF7F5)]">
+          <div className="text-center p-8 text-[var(--text-secondary,#8A8A8A)]">
+            Loading order details...
+          </div>
+        </div>
+      }
+    >
+      <CheckoutSuccessContent />
+    </Suspense>
   );
 }
