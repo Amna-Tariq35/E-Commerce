@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = usersData.users.find((u) => u.email === email);
+   const user = (usersData.users as any[]).find((u: any) => u.email === email);
 
     if (!user) {
       console.error('[reset-password] User not found for email:', email);
